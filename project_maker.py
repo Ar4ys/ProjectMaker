@@ -2,6 +2,7 @@ import codecs
 import os
 import re
 import shutil
+import subprocess
 
 import sublime
 import sublime_plugin
@@ -24,6 +25,7 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
         self.project_files_folder = settings.get("project_files_folder")
         self.non_parsed_ext = settings.get("non_parsed_ext")
         self.non_parsed_files = settings.get("non_parsed_files")
+        self.open_project_in_filemanager = settings.get("open_project_in_filemanager")
         self.existing_names = []
         self.plugin_path = os.path.join(sublime.packages_path(), "ProjectMaker")
         if not templates_path_setting:
@@ -238,7 +240,10 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
         self.rename_files()
         self.find_project_file()
         self.exec_tasks()
-        self.window.run_command("open_dir", {"dir": self.project_path})
+        if self.open_project_in_filemanager:
+            self.window.run_command("open_dir", {"dir": self.project_path})
+        else:
+            self.open_project_in_new(self.project_file)
 
     def replace_tokens(self):
         for file_path in self.tokenized_files:
@@ -310,3 +315,23 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
                 exec_args.update(t)
                 target = exec_args.pop("target")
                 sublime.run_command(target, exec_args)
+
+    def open_project_in_new(self, sublime_project_file):
+        """
+        Open a project in a new window
+        """
+        if not sublime_project_file:
+            return
+        if not os.path.isfile(sublime_project_file):
+            return
+        if not re.match('^.+\.sublime-project$', sublime_project_file):
+            return
+        sublime.set_timeout_async(lambda: subl(['--new-window', '--project', sublime_project_file]))
+
+def subl(args=[]):
+    # credit: randy3k/Project-Manager
+    executable_path = sublime.executable_path()
+    if sublime.platform() == 'osx':
+        app_path = executable_path[:executable_path.rfind('.app/') + 5]
+        executable_path = app_path + 'Contents/SharedSupport/bin/subl'
+    subprocess.Popen([executable_path] + args)

@@ -58,5 +58,8 @@
 	"non_parsed_files": [
 	    ".DS_Store",
 	    "build.xml"
-	]
+	],
+	// Open created project in filemanager
+	// instead of new sublime window
+	"open_project_in_filemanager": false
 }
