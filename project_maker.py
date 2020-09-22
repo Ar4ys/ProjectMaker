@@ -13,14 +13,9 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
         settings = sublime.load_settings("ProjectMaker.sublime-settings")
         templates_path_setting = settings.get("template_path")
         default_project_path_setting = settings.get("default_project_path")
-        if not default_project_path_setting:
-            self.default_project_path = os.path.normpath(
-                os.path.expanduser("~/project_name")
-            )
-        else:
-            self.default_project_path = os.path.normpath(
-                os.path.expanduser(default_project_path_setting)
-            )
+        self.default_project_path = os.path.normpath(
+            os.path.expanduser(default_project_path_setting)
+        )
 
         self.project_files_folder = settings.get("project_files_folder")
         self.non_parsed_ext = settings.get("non_parsed_ext")
@@ -28,18 +23,18 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
         self.open_project_in_filemanager = settings.get("open_project_in_filemanager")
         self.existing_names = []
         self.plugin_path = os.path.join(sublime.packages_path(), "ProjectMaker")
-        if not templates_path_setting:
-            templates_path = os.path.expanduser("~/ProjectMakerTemplates")
-            if os.path.exists(templates_path):
-                self.templates_path = templates_path
-            else:
-                self.templates_path = os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)), "Sample-Templates"
-                )
+
+        templates_path = os.path.normpath(
+            os.path.expanduser(templates_path_setting)
+        )
+
+        if os.path.exists(templates_path):
+            self.templates_path = templates_path
         else:
-            self.templates_path = os.path.normpath(
-                os.path.expanduser(templates_path_setting)
+            self.templates_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "Sample-Templates"
             )
+
         self.template_names = []
         self.choose_template()
 
