@@ -56,6 +56,7 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
             self.chosen_template_path = os.path.join(
                 self.templates_path, self.chosen_template_name
             )
+            self.get_tokens()
             self.get_project_path()
 
     def get_project_path(self):
@@ -96,8 +97,6 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
         self.create_project()
 
     def create_project(self):
-        self.copy_project()
-        self.get_tokens(self.project_path)
         self.get_token_values()
 
     def copy_project(self):
@@ -117,13 +116,14 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
                 else:
                     shutil.copy2(srcname, dstname)
 
-    def get_tokens(self, path):
+    def get_tokens(self):
         self.tokens = []
         self.tokenized_files = []
         self.tokenized_titles = []
-        self.get_tokens_from_path(path)
+        self.get_tokens_from_template()
 
-    def get_tokens_from_path(self, path):
+    def get_tokens_from_template(self, relative_path=""):
+        path = os.path.join(self.chosen_template_path, relative_path)
         files = os.listdir(path)
         for file_name in files:
             if file_name in self.non_parsed_files or file_name in self.existing_names:
@@ -134,17 +134,18 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
                 continue
 
             file_path = os.path.join(path, file_name)
-            self.get_token_from_file_name(path, file_name)
+            relative_file_path = os.path.join(relative_path, file_name)
+            self.get_token_from_file_name(relative_path, file_name)
             if os.path.isdir(file_path):
-                self.get_tokens_from_path(file_path)
+                self.get_tokens_from_template(relative_file_path)
             else:
-                self.get_tokens_from_file(file_path)
+                self.get_tokens_from_file(relative_file_path)
 
-    def get_token_from_file_name(self, path, file_name):
+    def get_token_from_file_name(self, relative_path, file_name):
         dot_index = file_name.find(".")
         if file_name[0:1] == "_" and file_name[dot_index - 1 : dot_index] == "_":
-            file_path = os.path.join(path, file_name)
-            self.tokenized_titles.append(file_path)
+            relative_file_path = os.path.join(relative_path, file_name)
+            self.tokenized_titles.append(relative_file_path)
             token = file_name[1 : dot_index - 1]
             if token not in self.tokens:
                 self.tokens.append(token)
@@ -176,7 +177,8 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
             pass
         sublime.error_message("Could not open " + file_path)
 
-    def get_tokens_from_file(self, file_path):
+    def get_tokens_from_file(self, relative_file_path):
+        file_path = os.path.join(self.chosen_template_path, relative_file_path)
         content = self.open_file(file_path)
         if content is None:
             return
@@ -184,7 +186,7 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
         r = re.compile(r"\${[^}]*}")
         matches = r.findall(content)
         if len(matches) > 0:
-            self.tokenized_files.append(file_path)
+            self.tokenized_files.append(relative_file_path)
         for match in matches:
             token = match[2:-1]
             if token not in self.tokens:
@@ -222,7 +224,8 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
                     None,
                 )
         else:
-            # all done. do replacements
+            # all done. copy project and do replacements
+            self.copy_project()
             self.customize_project()
 
     def on_token_value(self, token_value):
@@ -241,7 +244,8 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
             self.open_project_in_new(self.project_file)
 
     def replace_tokens(self):
-        for file_path in self.tokenized_files:
+        for relative_file_path in self.tokenized_files:
+            file_path = os.path.join(self.project_path, relative_file_path)
             self.replace_tokens_in_file(file_path)
 
     def replace_tokens_in_file(self, file_path):
@@ -257,7 +261,8 @@ class ProjectMakerCommand(sublime_plugin.WindowCommand):
         file_ref.close()
 
     def rename_files(self):
-        for file_path in self.tokenized_titles:
+        for relative_file_path in self.tokenized_titles:
+            file_path = os.path.join(self.project_path, relative_file_path)
             for token, value in self.token_values:
                 # we do NOT want to use a full path for a single file name!
                 if token != "project_path":
